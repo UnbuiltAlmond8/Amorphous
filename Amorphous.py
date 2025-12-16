@@ -91,9 +91,9 @@ for i in range(2, 9):
 
 # ai
 available_models = [
+    'gemini-2.0-flash-lite'
     'gemini-2.0-flash', #pray that google makes it free again
     'gemini-2.5-flash',
-    'gemini-2.0-flash-lite',
     'gemini-robotics-er-1.5-preview',
     'gemini-2.5-flash-lite'
 ]
