@@ -431,14 +431,67 @@ def safesplit(text):
         start = end
     return chunks
 
+async def get_or_create_webhook(channel):
+    """Retrieves an existing webhook owned by the bot or creates a new one."""
+    # Webhooks only work in TextChannels (not DMs)
+    if not isinstance(channel, discord.TextChannel):
+        return None
+    
+    try:
+        webhooks = await channel.webhooks()
+        # Look for a webhook created by the bot
+        webhook = next((w for w in webhooks if w.user.id == client.user.id), None)
+        
+        if not webhook:
+            # Create one if it doesn't exist
+            webhook = await channel.create_webhook(name="Amorphous Proxy")
+            
+        return webhook
+    except discord.Forbidden:
+        # Bot doesn't have "Manage Webhooks" permission
+        print(f"Missing 'Manage Webhooks' permission in {channel.name}")
+        return None
+    except Exception as e:
+        print(f"Error retrieving webhook: {e}")
+        return None
 
-async def safesend(function, text):
-    # --- NEW: Filter mass pings before sending ---
-    # --- MODIFIED: Added filtering for user ping characters as requested ---
+async def safesend(destination, text, username=None, avatar_url=None):
+    """
+    Sends a message safely, splitting it if necessary.
+    Prioritizes Webhooks for cleaner 'Persona' display.
+    """
+    # --- Filter mass pings ---
     filtered_text = text.replace("@everyone", "everyone").replace("@here", "here").replace('@', '')
     safechunks = safesplit(filtered_text)
+
+    # Determine if we can use a webhook
+    webhook = None
+    
+    # Check if 'destination' is a TextChannel (where webhooks work)
+    # We skip webhooks for Interactions (slash commands) to keep the reply thread valid
+    if isinstance(destination, discord.TextChannel):
+        webhook = await get_or_create_webhook(destination)
+
     for m in safechunks:
-        await function(m)
+        try:
+            if webhook and username:
+                # Send via Webhook
+                await webhook.send(content=m, username=username, avatar_url=avatar_url)
+            else:
+                # Fallback: Standard Send
+                if hasattr(destination, 'send'): # Normal Channel/DM
+                    await destination.send(m)
+                elif hasattr(destination, 'followup'): # Interaction/Slash Command
+                    await destination.followup.send(m)
+                else:
+                    # Specific fallback for the way 'function' was passed in old code
+                    # If 'destination' is actually a method (like interaction.followup.send)
+                    await destination(m) 
+        except Exception as e:
+            print(f"Error sending message: {e}")
+            # Final desperate fallback if webhook failed mid-loop
+            if hasattr(destination, 'send'):
+                await destination.send(m)
 
 
 # Intents are already defined above.
@@ -684,7 +737,10 @@ async def answer(interaction: discord.Interaction, query: str, attachment: disco
         llm_response = "sorry, but no prompt injecting"
 
     # Send the response and update memory
-    await safesend(interaction.followup.send, f"> {query}\n\n{llm_response}")
+    # For slash commands, we pass the interaction object directly.
+    # We typically don't use webhooks here so the UI links the reply to the user,
+    # but safesend handles the logic.
+    await safesend(interaction, f"> {query}\n\n{llm_response}")
 
     if not llm_response.startswith("ALL MODELS AND TOKENS FAILED.") and not llm_response == "sorry, but no prompt injecting":
         conversation.append({"role": "model", "parts": [{"text": llm_response}]})
@@ -1186,7 +1242,8 @@ async def on_message(message):
         if not answer:
             answer = "I couldn't find anything."
             
-        await safesend(message.channel.send, answer)
+        bot_avatar = client.user.avatar.url if client.user.avatar else None
+        await safesend(message.channel, answer, username=shape_name, avatar_url=bot_avatar)
     # --- END: SEARCH COMMAND FALLBACK ---
         
     # Allow command        
@@ -1394,7 +1451,12 @@ async def on_message(message):
         # i shouldn't have asked gemini to make ts i regret everything
         
         print(llm_response)
-        await safesend(message.channel.send, llm_response)
+        
+        # Use the bot's avatar, or a custom one if you have a URL string variable
+        bot_avatar = client.user.avatar.url if client.user.avatar else None
+        
+        # Pass the channel object, NOT the .send method
+        await safesend(message.channel, llm_response, username=shape_name, avatar_url=bot_avatar)
         
         # --- IMPORTANT CHANGE 12: Add bot's response to conversation history in structured format. ---
         # This keeps the history accurate for the next turn.
