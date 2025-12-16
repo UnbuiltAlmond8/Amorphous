@@ -278,8 +278,13 @@ def get_convo(guild_id):
         bot_configs[guild_id] = {
             "conversation": [], # Default to empty list for structured messages
             "toggle": True,  # Default: Ignore commands from bots
-            "logging_channel": None # Add logging channel config
+            "logging_channel": None, # Add logging channel config
+            "channel_modes": {} # --- NEW: Stores auto-chat probability per channel ---
         }
+    # Backward compatibility check (in case bot_configs already exists in memory)
+    if "channel_modes" not in bot_configs[guild_id]:
+         bot_configs[guild_id]["channel_modes"] = {}
+         
     return bot_configs[guild_id]
 
 
@@ -789,6 +794,39 @@ async def view_memory(interaction: discord.Interaction):
     else:
         await interaction.response.send_message(memory_str, ephemeral=True)
 
+@client.tree.command(name="autochat", description="Set how often the bot responds in this channel without being pinged (0-100%).")
+@discord.app_commands.describe(probability="0 = Only when pinged. 100 = Always respond. 5 = Randomly join in.")
+async def autochat(interaction: discord.Interaction, probability: int):
+    """Sets the auto-response probability for the current channel."""
+    # 1. Check Permissions
+    if not (interaction.user.guild_permissions.administrator or is_trusted_user(interaction.user.id)):
+        await interaction.response.send_message(
+            "You need Administrator permissions or Trusted status to use this command.", 
+            ephemeral=True
+        )
+        return
+
+    # 2. Validate Input
+    if probability < 0 or probability > 100:
+        await interaction.response.send_message("Please enter a number between 0 and 100.", ephemeral=True)
+        return
+
+    # 3. Update Config
+    guild_config = get_convo(interaction.guild.id)
+    channel_id = interaction.channel.id
+    
+    guild_config["channel_modes"][channel_id] = probability
+
+    # 4. User Feedback
+    if probability == 0:
+        msg = f"Auto-chat disabled for {interaction.channel.mention}. I will only respond when mentioned."
+    elif probability == 100:
+        msg = f"Auto-chat set to **100%** for {interaction.channel.mention}. I will respond to every message here."
+    else:
+        msg = f"Auto-chat set to **{probability}%** for {interaction.channel.mention}. I will occasionally join the conversation."
+        
+    await interaction.response.send_message(msg)
+    
 # --- END OF SLASH COMMAND INTEGRATION ---
 
 # --- NEW: GLOBAL SLASH COMMAND ERROR HANDLER ---
@@ -1273,12 +1311,26 @@ async def on_message(message):
         except Exception:
             pass # Ignore if message not found
 
-    # Check if channel is activated
+    # Check if channel is activated (Legacy Command Support)
     if message.channel.id in activated_channels:
         should_respond = True
     else:
-        # sigma
-        if client.user in message.mentions or random.randint(1, 100000) == 1:
+        # Check explicit pings
+        if client.user in message.mentions:
+            should_respond = True
+            
+        # --- NEW: Check Auto-Chat Probability ---
+        elif message.guild:
+            # Get the probability set for this specific channel
+            chan_probs = guild_config.get("channel_modes", {})
+            current_prob = chan_probs.get(message.channel.id, 0) # Default to 0 if not set
+            
+            # Roll the dice (1-100)
+            if current_prob > 0 and random.randint(1, 100) <= current_prob:
+                should_respond = True
+        
+        # Keep your Easter egg (Optional)
+        elif random.randint(1, 100000) == 1:
             should_respond = True
             
     if message.channel.id in ignored_channels:
