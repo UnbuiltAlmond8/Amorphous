@@ -720,9 +720,16 @@ async def answer(interaction: discord.Interaction, query: str, attachment: disco
     except Exception as e:
         import json
         last_error_info = str(e).replace("%7D", "}")
-        last_error_info = json.loads(last_error_info)
+        try:
+            last_error_info = json.loads(last_error_info)['error']
+        except json.JSONDecodeError:
+            last_error_info = {'status': 0, 'message': last_error_info}
         print(f"All tokens and models failed: {e}")
-        llm_response = f"ALL MODELS AND TOKENS FAILED. MORE INFORMATION: {last_error_info['error']['message']}"
+        llm_response = f"ALL MODELS AND TOKENS FAILED. MORE INFORMATION: "
+        if last_error_info['status'] == 429:
+            llm_response += last_error_info['message'].replace('Please retry', '**Please retry').replace('s.', 's.**')
+        else:
+            llm_response += last_error_info['message']
 
     # --- STAGE 3: OUTPUT FILTERING ---
     output_blacklist_phrases = [
