@@ -718,9 +718,11 @@ async def answer(interaction: discord.Interaction, query: str, attachment: disco
         )
         llm_response = response.text
     except Exception as e:
-        last_error_info = str(e)
+        import json
+        last_error_info = str(e).replace("%7D", "}")
+        last_error_info = json.loads(last_error_info)
         print(f"All tokens and models failed: {e}")
-        llm_response = f"ALL MODELS AND TOKENS FAILED. MORE INFORMATION: {last_error_info}"
+        llm_response = f"ALL MODELS AND TOKENS FAILED. MORE INFORMATION: {last_error_info['error']['message']}"
 
     # --- STAGE 3: OUTPUT FILTERING ---
     output_blacklist_phrases = [
