@@ -21,6 +21,21 @@ import os, os.path
 #keep_alive()
 
 
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return "Bot is running."
+
+def run_web():
+    port = int(os.environ.get("PORT", 5000))
+    try:
+        app.run(host="0.0.0.0", port=port, use_reloader=False)
+    except Exception:
+        pass
+
 def update_watcher():
     while True:
         sleep(20)
@@ -1338,5 +1353,6 @@ async def on_message(message):
             update_convo(conversation, guild_id)
         # --- END CHANGE 12 ---
 
-
+t = threading.Thread(target=run_web)
+t.start()
 client.run(token)
