@@ -175,7 +175,7 @@ shape_name = amorphous_config["shape-name"]
 knowledge_db = []
 
 # Trusted users system
-TRUSTED_USERS = [Trusted]  # admin abuse🤑🤑🤑🤑🤑
+TRUSTED_USERS = [1306818396419002501]  # admin abuse🤑🤑🤑🤑🤑
 TRUSTED_USERS_FILE = "trusted_users.json" # File is kept, but no commands to modify it
 CUSTOM_NAMES_FILE = "user_names.json" # userz
 
