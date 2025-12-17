@@ -1501,7 +1501,7 @@ async def on_message(message):
                 llm_response = response.text
         except Exception as e:
             import json
-            last_error_info = str(e).replace("%7D", "}").removeprefix("429 RESOURCE_EXHAUSTED. ").removeprefix("Failed with model gemini-2.5-flash-lite on token ending ...96quc: ").removesuffix(" Retrying...")
+            last_error_info = str(e).replace("%7D", "}").removeprefix("429 RESOURCE_EXHAUSTED. ").removesuffix(" Retrying...")
             try:
                 last_error_info = json.loads(last_error_info)['error']
             except json.JSONDecodeError as s:
