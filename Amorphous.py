@@ -722,7 +722,7 @@ async def answer(interaction: discord.Interaction, query: str, attachment: disco
         llm_response = response.text
     except Exception as e:
         import json
-        last_error_info = str(e).replace("%7D", "}").removeprefix("429 RESOURCE_EXHAUSTED. ").removesuffix(" Retrying...")
+        last_error_info = str(e).replace("%7D", "}").removeprefix("429 RESOURCE_EXHAUSTED. ").removesuffix(" Retrying...").replace("'", '"')
         try:
             last_error_info = json.loads(last_error_info)['error']
         except json.JSONDecodeError as s:
@@ -1501,7 +1501,7 @@ async def on_message(message):
                 llm_response = response.text
         except Exception as e:
             import json
-            last_error_info = str(e).replace("%7D", "}").removeprefix("429 RESOURCE_EXHAUSTED. ").removesuffix(" Retrying...")
+            last_error_info = str(e).replace("%7D", "}").removeprefix("429 RESOURCE_EXHAUSTED. ").removesuffix(" Retrying...").replace("'", '"')
             try:
                 last_error_info = json.loads(last_error_info)['error']
             except json.JSONDecodeError as s:
