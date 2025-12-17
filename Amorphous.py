@@ -1500,9 +1500,20 @@ async def on_message(message):
                 )
                 llm_response = response.text
         except Exception as e:
-            last_error_info = str(e) # Store error
-            print(f"All models and tokens failed: {e}") # Debug print
-            llm_response = f"ALL MODELS AND TOKENS FAILED. MORE INFORMATION: {last_error_info}"
+            import json
+            last_error_info = str(e).replace("%7D", "}").removeprefix("429 RESOURCE_EXHAUSTED. ").removeprefix("Failed with model gemini-2.5-flash-lite on token ending ...96quc: ").removesuffix(" Retrying...")
+            try:
+                last_error_info = json.loads(last_error_info)['error']
+            except json.JSONDecodeError as s:
+                print(f"Failed to decode error JSON: {s}")
+                last_error_info = {'code': 0, 'message': last_error_info}
+            print(f"All tokens and models failed: {json.dumps(last_error_info)}")
+            llm_response = f"ALL MODELS AND TOKENS FAILED. MORE INFORMATION: "
+            if last_error_info['code'] == 429:
+                llm_response += last_error_info['message'].replace('Please retry', '**Please retry').replace('s.', 's.**')
+            else:
+                llm_response += last_error_info['message']
+
 
         # --- IMPORTANT CHANGE 11: Output Filtering (Layer 3 Defense). ---
         # A final check on Gemini's response before sending it to the user.
