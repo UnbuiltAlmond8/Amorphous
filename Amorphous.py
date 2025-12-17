@@ -731,7 +731,7 @@ async def answer(interaction: discord.Interaction, query: str, attachment: disco
         print(f"All tokens and models failed: {json.dumps(last_error_info)}")
         llm_response = f"ALL MODELS AND TOKENS FAILED. MORE INFORMATION: "
         if last_error_info['code'] == 429:
-            llm_response += last_error_info['message'].replace('Please retry', '**Please retry').replace('s.', 's.**')
+            llm_response += last_error_info['message'].replace('Please retry', '**Please retry').replace('s.', 's.**').replace("s.**com", "s.com")
         else:
             llm_response += last_error_info['message']
 
@@ -1510,7 +1510,7 @@ async def on_message(message):
             print(f"All tokens and models failed: {json.dumps(last_error_info)}")
             llm_response = f"ALL MODELS AND TOKENS FAILED. MORE INFORMATION: "
             if last_error_info['code'] == 429:
-                llm_response += last_error_info['message'].replace('Please retry', '**Please retry').replace('s.', 's.**')
+                llm_response += last_error_info['message'].replace('Please retry', '**Please retry').replace('s.', 's.**').replace("s.**com", "s.com")
             else:
                 llm_response += last_error_info['message']
 
