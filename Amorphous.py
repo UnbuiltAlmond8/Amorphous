@@ -276,14 +276,17 @@ def get_convo(guild_id):
     """Retrieves the bot configuration for a given guild, creating a default one if it doesn't exist."""
     if guild_id not in bot_configs:
         bot_configs[guild_id] = {
-            "conversation": [], # Default to empty list for structured messages
-            "toggle": True,  # Default: Ignore commands from bots
-            "logging_channel": None, # Add logging channel config
-            "channel_modes": {} # --- NEW: Stores auto-chat probability per channel ---
+            "conversation": [], 
+            "toggle": True, 
+            "logging_channel": None, 
+            "channel_modes": {}, # Stores probability (0-100)
+            "channel_intervals": {} # --- NEW: Stores interval data ---
         }
-    # Backward compatibility check (in case bot_configs already exists in memory)
+    # Backward compatibility checks
     if "channel_modes" not in bot_configs[guild_id]:
          bot_configs[guild_id]["channel_modes"] = {}
+    if "channel_intervals" not in bot_configs[guild_id]: # --- NEW CHECK ---
+         bot_configs[guild_id]["channel_intervals"] = {}
          
     return bot_configs[guild_id]
 
@@ -880,7 +883,13 @@ async def autochat(interaction: discord.Interaction, probability: int):
     guild_config = get_convo(interaction.guild.id)
     channel_id = interaction.channel.id
     
+    # Set probability
     guild_config["channel_modes"][channel_id] = probability
+    
+    # --- NEW: Remove from interval mode if it exists there ---
+    if channel_id in guild_config["channel_intervals"]:
+        del guild_config["channel_intervals"][channel_id]
+    # --------------------------------------------------------
 
     # 4. User Feedback
     if probability == 0:
@@ -891,7 +900,51 @@ async def autochat(interaction: discord.Interaction, probability: int):
         msg = f"Auto-chat set to **{probability}%** for {interaction.channel.mention}. I will occasionally join the conversation."
         
     await interaction.response.send_message(msg)
-    
+
+@client.tree.command(name="autochat_interval", description="Make bot respond every X to Y messages.")
+@discord.app_commands.describe(
+    start="Minimum number of messages to wait before responding.",
+    end="Optional: Maximum number of messages to wait. If empty, it waits exactly for 'start'."
+)
+async def autochat_interval(interaction: discord.Interaction, start: int, end: int = None):
+    """Sets the bot to respond based on a specific message count interval."""
+    # Check Permissions
+    if not (interaction.user.guild_permissions.administrator or is_trusted_user(interaction.user.id)):
+        await interaction.response.send_message("You need Administrator permissions to use this.", ephemeral=True)
+        return
+
+    if start < 1:
+        await interaction.response.send_message("Start number must be at least 1.", ephemeral=True)
+        return
+
+    if end is not None and end < start:
+        await interaction.response.send_message("End number cannot be smaller than Start number.", ephemeral=True)
+        return
+
+    guild_config = get_convo(interaction.guild.id)
+    channel_id = interaction.channel.id
+
+    # Determine initial target
+    import random
+    target = random.randint(start, end) if end else start
+
+    # Save to config
+    guild_config["channel_intervals"][channel_id] = {
+        "min": start,
+        "max": end if end else start,
+        "current": 0,
+        "target": target
+    }
+
+    # Disable probability mode for this channel to avoid conflict
+    if channel_id in guild_config["channel_modes"]:
+        del guild_config["channel_modes"][channel_id]
+
+    if end:
+        await interaction.response.send_message(f"Interval set! I will respond every **{start} to {end}** messages in {interaction.channel.mention}.")
+    else:
+        await interaction.response.send_message(f"Interval set! I will respond exactly every **{start}** messages in {interaction.channel.mention}.")
+
 # --- END OF SLASH COMMAND INTEGRATION ---
 
 # --- NEW: GLOBAL SLASH COMMAND ERROR HANDLER ---
@@ -1386,14 +1439,30 @@ async def on_message(message):
             should_respond = True
             
         # --- NEW: Check Auto-Chat Probability ---
+# --- NEW: Check Auto-Chat Logic (Probability OR Interval) ---
         elif message.guild:
-            # Get the probability set for this specific channel
-            chan_probs = guild_config.get("channel_modes", {})
-            current_prob = chan_probs.get(message.channel.id, 0) # Default to 0 if not set
+            channel_id = message.channel.id
             
-            # Roll the dice (1-100)
-            if current_prob > 0 and random.randint(1, 100) <= current_prob:
-                should_respond = True
+            # 1. Check Interval Mode
+            intervals = guild_config.get("channel_intervals", {})
+            if channel_id in intervals:
+                data = intervals[channel_id]
+                data["current"] += 1 # Increment counter
+                
+                # Check if we hit the target
+                if data["current"] >= data["target"]:
+                    should_respond = True
+                    # Reset counter and roll new target
+                    data["current"] = 0
+                    data["target"] = random.randint(data["min"], data["max"])
+            
+            # 2. Check Probability Mode (Only if Interval mode didn't trigger/exist)
+            else:
+                chan_probs = guild_config.get("channel_modes", {})
+                current_prob = chan_probs.get(channel_id, 0)
+                
+                if current_prob > 0 and random.randint(1, 100) <= current_prob:
+                    should_respond = True
         
         # Keep your Easter egg (Optional)
         elif random.randint(1, 100000) == 1:
@@ -1404,7 +1473,7 @@ async def on_message(message):
         
     if isinstance(message.channel, discord.channel.DMChannel):
         should_respond = True
-        
+    
     if should_respond:
         # todo fix this
         formatted_user_message = f"{user_display_name}: {cleaned_user_message}"
@@ -1463,7 +1532,7 @@ async def on_message(message):
         
         # Use the bot's avatar, or a custom one if you have a URL string variable
         bot_avatar = client.user.avatar.url if client.user.avatar else None
-        
+
         # Pass the channel object, NOT the .send method
         await safesend(message.channel, llm_response, username=shape_name, avatar_url=bot_avatar)
         
