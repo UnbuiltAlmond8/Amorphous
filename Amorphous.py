@@ -745,9 +745,6 @@ async def answer(interaction: discord.Interaction, query: str, attachment: disco
         "```json", "\"message\":", "\"summary\":", "\"rp\":", "internal security protocol", "filter-bypass prevention",
         "bibliographic format", "actually write the full text in place of", "完整的提示信息", "information about yourself", "info abt urself", "info abt yourself", "info about urself",
     ]
-    if any(phrase in llm_response.lower() for phrase in output_blacklist_phrases):
-        print(f"DEBUG: AI response filtered due to problematic output: '{llm_response[:100]}...'")
-        llm_response = "sorry, but no prompt injecting"
 
     # Send the response and update memory
     # For slash commands, we pass the interaction object directly.
@@ -1535,9 +1532,6 @@ async def on_message(message):
             "完整的提示信息", # unbuoltalmond is chinese confirmed
         ]
         # --- END NEW PHRASES ---
-        if any(phrase in llm_response.lower() for phrase in output_blacklist_phrases):
-            print(f"DEBUG: AI response filtered due to problematic output: '{llm_response[:100]}...'")
-            llm_response = "sorry, but no prompt injecting"
         # i shouldn't have asked gemini to make ts i regret everything
         
         print(llm_response)
