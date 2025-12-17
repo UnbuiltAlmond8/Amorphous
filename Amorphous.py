@@ -725,11 +725,12 @@ async def answer(interaction: discord.Interaction, query: str, attachment: disco
         last_error_info = str(e).replace("%7D", "}")
         try:
             last_error_info = json.loads(last_error_info)['error']
-        except json.JSONDecodeError:
-            last_error_info = {'status': 0, 'message': last_error_info}
+        except json.JSONDecodeError as e:
+            print(f"Failed to decode error JSON: {e}")
+            last_error_info = {'code': 0, 'message': last_error_info}
         print(f"All tokens and models failed: {e}")
         llm_response = f"ALL MODELS AND TOKENS FAILED. MORE INFORMATION: "
-        if last_error_info['status'] == 429:
+        if last_error_info['code'] == 429:
             llm_response += last_error_info['message'].replace('Please retry', '**Please retry').replace('s.', 's.**')
         else:
             llm_response += last_error_info['message']
