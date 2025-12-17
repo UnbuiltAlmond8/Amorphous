@@ -722,13 +722,13 @@ async def answer(interaction: discord.Interaction, query: str, attachment: disco
         llm_response = response.text
     except Exception as e:
         import json
-        last_error_info = str(e).replace("%7D", "}")
+        last_error_info = str(e).replace("%7D", "}").removeprefix("429 RESOURCE_EXHAUSTED. ").removesuffix(" Retrying...")
         try:
             last_error_info = json.loads(last_error_info)['error']
-        except json.JSONDecodeError as e:
-            print(f"Failed to decode error JSON: {e}")
+        except json.JSONDecodeError as s:
+            print(f"Failed to decode error JSON: {s}")
             last_error_info = {'code': 0, 'message': last_error_info}
-        print(f"All tokens and models failed: {e}")
+        print(f"All tokens and models failed: {json.dumps(last_error_info)}")
         llm_response = f"ALL MODELS AND TOKENS FAILED. MORE INFORMATION: "
         if last_error_info['code'] == 429:
             llm_response += last_error_info['message'].replace('Please retry', '**Please retry').replace('s.', 's.**')
