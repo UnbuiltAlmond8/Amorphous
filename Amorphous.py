@@ -91,12 +91,12 @@ for i in range(2, 9):
 
 # ai
 available_models = [
-    'gemini-3-flash-preview',
     'gemini-2.0-flash-lite',
     'gemini-2.0-flash', #pray that google makes it free again
     'gemini-2.5-flash',
     'gemini-robotics-er-1.5-preview',
-    'gemini-2.5-flash-lite'
+    'gemini-2.5-flash-lite',
+    'gemini-3-flash-preview'
 ]
 # --- END TOKEN & MODEL SETUP ---
 
@@ -700,7 +700,8 @@ async def answer(interaction: discord.Interaction, query: str, attachment: disco
     
     # --- MODIFIED: Prepend user's name to the message for the AI ---
     user_display_name = get_user_display_name(interaction.user)
-    formatted_query = f"{user_display_name}: {query}"
+    user_username = interaction.user.name
+    formatted_query = f"[{user_username}]({user_display_name}): {query}"
 
     # Add user message to conversation history
     conversation.append({"role": "user", "parts": [{"text": formatted_query}]})
@@ -1080,8 +1081,11 @@ async def on_message(message):
     
     cleaned_user_message = await replace_mentions_with_usernames(message.content, message)
     # --- MODIFIED: Use the new helper function for logging the display name ---
+    
+    user_username = message.author.name
     user_display_name = get_user_display_name(message.author)
-    print(f"[{message.author}]({user_display_name}){channel_tag}  : {cleaned_user_message}")
+    
+    print(f"[{user_username}]({user_display_name}){channel_tag}  : {cleaned_user_message}")
     
     # --- IMPORTANT CHANGE 6 (MODIFIED): The block for adding user messages to memory has been moved. ---
     # It is now located inside the `if should_respond:` block to make it conditional.
@@ -1475,7 +1479,7 @@ async def on_message(message):
     
     if should_respond:
         # todo fix this
-        formatted_user_message = f"{user_display_name}: {cleaned_user_message}"
+        formatted_user_message = f"[{user_username}]({user_display_name}): {cleaned_user_message}"
         
         #todo fix this
         conversation.append({"role": "user", "parts": [{"text": formatted_user_message}]})
