@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 import discord.utils
 import json
 import unicodedata # Added for Unicode normalization to enhance security
+import asyncio # --- NEW: Added for non-blocking sleep in delete command ---
 
 from time import sleep
 import os, os.path
@@ -1285,6 +1286,48 @@ async def on_message(message):
             except Exception as e:
                 await message.channel.send(f"Error timing out user: {e}")
     # gemini u dummy stop pls
+
+    # --- DELETE COMMAND (REPLY ONLY) ---
+    is_delete_cmd = False
+    # Check for prefix + delete
+    if message.content.startswith(f"{prefix} delete"):
+        is_delete_cmd = True
+    # Check for mention + delete
+    elif (message.content.startswith(f"<@{client.user.id}>") or message.content.startswith(f"<@!{client.user.id}>")) and "delete" in message.content.lower():
+        is_delete_cmd = True
+        
+    if is_delete_cmd:
+        ran_command = True
+        if not await check_moderation_permissions(message):
+            return
+
+        if not message.reference:
+            await message.channel.send("Please reply to the message you want to delete.")
+            return
+
+        try:
+            # Fetch the message being replied to
+            msg_to_delete = await message.channel.fetch_message(message.reference.message_id)
+            
+            # Delete the target message
+            await msg_to_delete.delete()
+            
+            # Delete the command message (cleanup)
+            try:
+                await message.delete()
+            except:
+                pass
+                
+            # Send temporary confirmation
+            conf_msg = await message.channel.send(f"Deleted message from **{msg_to_delete.author.display_name}**.")
+            await asyncio.sleep(3)
+            await conf_msg.delete()
+            
+        except discord.Forbidden:
+            await message.channel.send("I don't have permission to delete that message.")
+        except Exception as e:
+            await message.channel.send(f"Error deleting message: {e}")
+
 
     # --- START: SEARCH COMMAND FALLBACK ---
     if message.content.startswith(f"{prefix} search "):
