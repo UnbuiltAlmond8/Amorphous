@@ -1309,6 +1309,12 @@ async def on_message(message):
             # Fetch the message being replied to
             msg_to_delete = await message.channel.fetch_message(message.reference.message_id)
             
+            # --- NEW CHECK: Ensure the message to delete is from the bot ---
+            if msg_to_delete.author != client.user:
+                await message.channel.send("I can only delete my own messages.")
+                return
+            # -------------------------------------------------------------
+            
             # Delete the target message
             await msg_to_delete.delete()
             
