@@ -1357,7 +1357,7 @@ async def on_message(message):
             answer = "I couldn't find anything."
             
         bot_avatar = client.user.avatar.url if client.user.avatar else None
-        await safesend(message.channel, answer, username=shape_name, avatar_url=bot_avatar)
+        await safesend(message.channel, answer, username=shape_name, avatar_url=None)
     # --- END: SEARCH COMMAND FALLBACK ---
         
     # Allow command        
