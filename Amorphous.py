@@ -1357,7 +1357,7 @@ async def on_message(message):
             answer = "I couldn't find anything."
             
         bot_avatar = client.user.avatar.url if client.user.avatar else None
-        await safesend(message.channel, answer, username=shape_name, avatar_url=None)
+        await safesend(message.channel, answer, username=shape_name, avatar_url="https://cdn.discordapp.com/avatars/1334722844650635356/552e8f25357515c90fefb05bbc0bca8c.webp?size=1024")
     # --- END: SEARCH COMMAND FALLBACK ---
         
     # Allow command        
